@@ -1,0 +1,56 @@
+{
+  "name": "bssh-agent",
+  "version": "0.1.0",
+  "description": "browser-ssh-agent: SSH agent forwarding over WebSocket — keys live in the browser, signing is relayed to a Node.js SSH client",
+  "type": "module",
+  "license": "MIT",
+  "author": "Naoyuki Sogo <sogo@longtail-software.co.jp>",
+  "keywords": [
+    "ssh",
+    "ssh-agent",
+    "agent-forwarding",
+    "websocket",
+    "ed25519",
+    "browser",
+    "ssh2"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser/index.d.ts",
+      "import": "./dist/browser/index.js"
+    },
+    "./shared": {
+      "types": "./dist/shared/index.d.ts",
+      "import": "./dist/shared/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.browser.json --noEmit"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.7.0",
+    "bcrypt-pbkdf": "^1.0.2",
+    "ssh2": "^1.16.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ssh2": "^1.15.5",
+    "@types/ws": "^8.5.13",
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

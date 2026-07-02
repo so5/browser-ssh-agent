@@ -1,0 +1,8 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# Generated fresh by test/globalSetup.ts — never commit private key material,
+# even throwaway test fixtures (see README's security notes / PR discussion).
+test/fixtures/
