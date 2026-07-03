@@ -72,7 +72,6 @@ const agentServer = new AgentServer();
 
 agentServer.attachTo(httpServer, '/ws');
 await agentServer.startUnixSocket();
-httpServer.listen(8787);
 
 // Hand this URL to the user (QR code, printed link, ...). Never log it
 // persistently — the pairing token lives in the fragment on purpose.
@@ -84,6 +83,10 @@ agentServer.on('session-paired', () => {
     stdio: 'inherit',
   });
 });
+
+// Your app's own server startup — not part of this library. attachTo()
+// only registers an 'upgrade' listener; it doesn't start listening itself.
+httpServer.listen(8787);
 ```
 
 The `/ws` path above matches `<bssh-agent-pairing>`'s zero-config default —
@@ -118,9 +121,15 @@ add a `<script>` tag and the tag itself, no hand-written form or dialog
 required:
 
 ```html
-<script type="module" src="/path/to/bssh-agent/dist/widget/index.js"></script>
+<script type="module" src="https://unpkg.com/bssh-agent@0.1.0/dist/widget/index.js"></script>
 <bssh-agent-pairing></bssh-agent-pairing>
 ```
+
+Pin the version (as above) rather than floating on `@latest` — a breaking
+change in a later release shouldn't silently change what a copy-pasted
+`<script>` tag loads. Self-hosting `dist/widget/index.js` (e.g. from your
+own app's static assets after `npm install`) works the same way and avoids
+a runtime dependency on a third-party CDN.
 
 By default it reads the pairing token from `location.hash` (matching
 `createPairingLink()`'s output) and derives its WebSocket URL from

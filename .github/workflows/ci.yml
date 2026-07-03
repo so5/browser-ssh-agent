@@ -22,6 +22,8 @@ jobs:
 
       - run: npm ci
 
+      - run: node scripts/sync-readme-version.mjs --check
+
       - run: npm run typecheck
 
       - run: npm test
