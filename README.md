@@ -303,6 +303,21 @@ that alone — treat any QR code or printed copy as something to discard once
 the pairing attempt is done, the same way you'd treat a password written on
 a sticky note.
 
+### Unattended access (no human present)
+
+`bssh-agent` requires a human to keep a browser tab open for every signing
+operation (see [How it works](#how-it-works)) — it isn't a fit for
+automation that must authenticate with nobody present. Two established
+alternatives apply instead, depending on what you control:
+
+- **SSH certificates** (`TrustedUserCAKeys`) — requires control over the
+  *remote host's* `sshd` configuration, i.e. administering that host, not
+  just holding a user account on it.
+- **A dedicated keypair for the app server** — works with an ordinary user
+  account on the remote host, no root required. See the
+  [dedicated-key bootstrap guide](./docs/DEDICATED_KEY_BOOTSTRAP.md) for the
+  exact commands and `authorized_keys` restrictions to use.
+
 ## Known issues
 
 **Upstream `ssh2` bug worked around:** `ssh2`'s `AgentProtocol` (server
