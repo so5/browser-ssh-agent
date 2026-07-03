@@ -1,5 +1,7 @@
 # API Reference
 
+*[日本語](./REFERENCE.ja.md)*
+
 Exhaustive reference for `bssh-agent`'s public API. For a narrative
 getting-started guide, see [README.md](../README.md).
 

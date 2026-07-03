@@ -46,7 +46,7 @@
     "test": "vitest run",
     "test:cli": "npm run build && vitest run --config vitest.cli.config.ts",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.browser.json --noEmit",
-    "version": "node scripts/sync-readme-version.mjs && git add README.md"
+    "version": "node scripts/sync-readme-version.mjs && git add README.md README.ja.md"
   },
   "dependencies": {
     "@noble/curves": "^1.7.0",
