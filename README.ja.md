@@ -34,7 +34,7 @@ sequenceDiagram
 
     rect rgb(245,245,245)
     Note over User,Remote: 3. Use ssh / git - any time after pairing
-    User->>SSH: ssh user@remote-host
+    Server->>SSH: spawn ssh/git via agentServer.env()
     SSH->>Server: via SSH_AUTH_SOCK: list identities
     Server->>Browser: relay request
     Browser-->>Server: public key
@@ -48,7 +48,7 @@ sequenceDiagram
     Server-->>SSH: signature
     SSH->>Remote: signed challenge
     Remote-->>SSH: authenticated
-    SSH-->>User: shell / command output
+    SSH-->>Server: command output
     end
 ```
 
