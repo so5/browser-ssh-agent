@@ -120,7 +120,7 @@ const connection = connectAgent({
 
 ### Browser, using the drop-in widget
 
-`<bssh-agent-pairing>` wraps `loadKeyFromFile` + `connectAgent` above into a
+`<bssh-agent-pairing>` wraps `loadKeyFromText` + `connectAgent` above into a
 single custom element with its own key-loading form and confirm-sign UI —
 add a `<script>` tag and the tag itself, no hand-written form or dialog
 required:
@@ -146,13 +146,27 @@ document.querySelector('bssh-agent-pairing').addEventListener('paired', () => {
 });
 ```
 
-It zeroizes the loaded key automatically on disconnect (and via its built-in
-"Forget key" button) — see [Security notes](#security-notes) — so there is
-intentionally no one-click reconnect after a drop; the user re-enters their
-passphrase. Set `auto-confirm="true"` to skip the built-in approve/deny
-prompt entirely (logs a console warning when used — see security notes
-below), or set the `confirmSign` property to supply your own UI instead of
-the built-in one.
+It zeroizes the *decrypted* key automatically on disconnect (and via its
+built-in "Forget key" button) — see [Security notes](#security-notes) — so
+the passphrase is always required again after a drop. What it does *not*
+require again is the file: the widget keeps the still-*encrypted* key file
+text cached in memory for the life of the page, so reconnecting after a
+dropped WebSocket (network blip, laptop sleep, tab backgrounded — anything
+short of actually closing the tab or reloading the page) shows a
+passphrase-only form instead of the full file picker. A "Use a different
+file" button is always available alongside it to discard the cache and go
+back to picking a file, and the explicit "Forget key" button always clears
+both the decrypted key *and* the cached file — there's no way to reconnect
+without the passphrase, only ways to avoid re-selecting the file. Caching
+the encrypted text costs nothing security-wise: it's exactly what the
+passphrase already protects, and the passphrase itself is never cached.
+Reconnecting still needs a fresh pairing token from your host app (tokens
+are single-use, and there's no session resumption) — only the key-loading
+step is skipped.
+
+Set `auto-confirm="true"` to skip the built-in approve/deny prompt entirely
+(logs a console warning when used — see security notes below), or set the
+`confirmSign` property to supply your own UI instead of the built-in one.
 
 ## CLI: `SSH_AUTH_SOCK` for your terminal
 
@@ -221,6 +235,18 @@ directory rather than relying solely on `SSH_AGENT_PID`.
   sign request with no prompt at all, equivalent to running without
   `confirmSign`. Only use it where the host page implements its own
   equivalent safeguard.
+- **The widget caches the encrypted key file's text in memory across a
+  disconnect**, so reconnecting only asks for the passphrase, not the file —
+  see [Browser, using the drop-in widget](#browser-using-the-drop-in-widget).
+  This is a deliberate, low-risk convenience: the cached text is exactly
+  what the passphrase already protects, so caching it doesn't expose
+  anything the passphrase-check doesn't already guard, and it's discarded
+  entirely by "Forget key," "Use a different file," or a page reload. It is
+  *not* the same as caching the decrypted key or the passphrase — those are
+  never retained past a disconnect. If your threat model requires that even
+  the encrypted file be forgotten immediately on disconnect, don't rely on
+  the widget's default behavior here; this is the "least security-risk"
+  convenience option, not a no-op.
 
 ## Development
 
