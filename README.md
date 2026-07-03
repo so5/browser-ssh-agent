@@ -59,9 +59,10 @@ sequenceDiagram
 
 The core of the library relays signing requests from a paired browser
 session to a real `SSH_AUTH_SOCK` Unix domain socket
-(`agentServer.startUnixSocket()` + `agentServer.env()`), so external
-`ssh`/`git`/`rsync`/`scp` CLI binaries can authenticate using a key that
-only ever exists in the browser tab — never on the server, never on disk.
+(`agentServer.startUnixSocket()`). Spread `agentServer.env()` into a
+`child_process.spawn()` call, and that spawned `ssh`/`git`/`rsync`/`scp`
+process authenticates using a key that only ever exists in the browser tab
+— never on the server, never on disk.
 
 Two more pieces build on top of that:
 

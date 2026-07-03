@@ -54,7 +54,7 @@ sequenceDiagram
 
 ## できること
 
-本ライブラリの中核機能は、ペアリング済みのブラウザセッションへ届いた署名リクエストを、本物の `SSH_AUTH_SOCK` Unix ドメインソケット（`agentServer.startUnixSocket()` + `agentServer.env()`）へ中継することです。これにより、外部の `ssh` / `git` / `rsync` / `scp` などの CLI バイナリは、サーバー上にもディスク上にも一切存在せず、ブラウザタブの中だけに存在する鍵を使って認証できます。
+本ライブラリの中核機能は、ペアリング済みのブラウザセッションへ届いた署名リクエストを、本物の `SSH_AUTH_SOCK` Unix ドメインソケット（`agentServer.startUnixSocket()`）へ中継することです。`agentServer.env()` を `child_process.spawn()` の呼び出しに展開すれば、その子プロセスとして起動された `ssh` / `git` / `rsync` / `scp` は、サーバー上にもディスク上にも一切存在せず、ブラウザタブの中だけに存在する鍵を使って認証できます。
 
 この上に、さらに2つの機能が積み重なっています。
 
