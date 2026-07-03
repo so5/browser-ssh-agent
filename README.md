@@ -37,13 +37,19 @@ There's also a lower-level way to integrate directly with `ssh2`'s own
 npm install bssh-agent
 ```
 
-ESM-only. Publishes four subpath exports: `bssh-agent/server` (Node.js),
-`bssh-agent/browser`, `bssh-agent/widget` (the drop-in `<bssh-agent-pairing>`
-Web Component, built on top of `bssh-agent/browser`), and `bssh-agent/shared`
-(protocol types shared by all of them). Also installs a `bssh-agent` CLI
-binary (`npx bssh-agent` or, with the package installed, just `bssh-agent`).
-See the [API reference](./docs/REFERENCE.md) for the full exhaustive
-signature/option/event listing across all of these.
+This package is **ESM-only** (`import`, not `require()`). It publishes four
+subpath exports:
+
+- `bssh-agent/server` — the Node.js server-side API (`AgentServer`, ...).
+- `bssh-agent/browser` — browser-side primitives (`loadKeyFromFile`, `connectAgent`, ...).
+- `bssh-agent/widget` — the drop-in `<bssh-agent-pairing>` Web Component, built on top of `bssh-agent/browser`.
+- `bssh-agent/shared` — protocol types shared by all three of the above.
+
+It also installs a `bssh-agent` CLI binary — run it via `npx bssh-agent`, or
+just `bssh-agent` once the package is installed.
+
+See the [API reference](./docs/REFERENCE.md) for the exhaustive list of
+every export, option, and event across all four subpaths.
 
 ## Usage
 
