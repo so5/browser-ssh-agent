@@ -27,8 +27,8 @@ sequenceDiagram
 
     rect rgb(245,245,245)
     Note over User,Server: 2. Pair the browser (once)
-    Server-->>User: Pairing URL (QR code, link, ...)
-    User->>Browser: Open the URL
+    Server-->>User: Show "Pair your key" link on the page
+    User->>Browser: Click the link
     User->>Browser: Select key file + enter passphrase
     Browser->>Browser: Decrypt key locally - never leaves the tab
     Browser->>Server: WebSocket connect + hello(token)
@@ -118,8 +118,10 @@ const agentServer = new AgentServer();
 agentServer.attachTo(httpServer, '/ws');
 await agentServer.startUnixSocket();
 
-// Hand this URL to the user (QR code, printed link, ...). Never log it
-// persistently — the pairing token lives in the fragment on purpose.
+// Render this as a link/button on a page the user is already viewing in
+// their own browser (e.g. `<a href={url}>Pair your SSH key</a>`) — no need
+// to relay it through any other channel. Never log it persistently — the
+// pairing token lives in the fragment on purpose.
 const { url } = agentServer.createPairingLink('https://your-app.example/pair');
 
 agentServer.on('session-paired', () => {
@@ -272,6 +274,33 @@ This integration path is real and tested (`agentServer.agent()` has been
 usable since the project's earliest version), but isn't written up here in
 full yet — see `src/server/transports/inProcessAgent.ts` and the
 [API reference](./docs/REFERENCE.md#bssh-agentserver) in the meantime.
+
+### Delivering the pairing link across devices (QR code, printed link, ...)
+
+The [Server usage example](#server) assumes the simplest and safest case:
+the process minting the pairing link *is* the web app the user is already
+viewing in their own browser, so `createPairingLink()`'s URL can just be
+rendered as a link/button on that page — no separate delivery channel
+needed at all.
+
+That assumption breaks down when whatever calls `createPairingLink()` has
+no browser of its own to render a link in — most notably the `bssh-agent`
+CLI (see [CLI](#cli-ssh_auth_sock-for-your-terminal)), which may be running
+on a remote/headless machine you've SSH'd into. In that case the URL has to
+reach a *different* device's browser somehow: printing it for the user to
+copy-paste, or rendering it as a QR code for a phone to scan, are the two
+common approaches.
+
+Both introduce a risk the `<a href>` case doesn't have: the URL — with its
+live, single-use token — now exists as something that can be captured and
+retained: a QR code image saved to a file, a printed page filed away, a
+terminal session that gets logged. That's the same risk class as [never
+logging the pairing link persistently](#security-notes) — a saved QR code
+image *is* a persistent log of the token. The token's short default TTL (5
+minutes) bounds how long such exposure actually matters, but don't rely on
+that alone — treat any QR code or printed copy as something to discard once
+the pairing attempt is done, the same way you'd treat a password written on
+a sticky note.
 
 ## Known issues
 

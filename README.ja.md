@@ -24,8 +24,8 @@ sequenceDiagram
 
     rect rgb(245,245,245)
     Note over User,Server: 2. Pair the browser (once)
-    Server-->>User: Pairing URL (QR code, link, ...)
-    User->>Browser: Open the URL
+    Server-->>User: Show "Pair your key" link on the page
+    User->>Browser: Click the link
     User->>Browser: Select key file + enter passphrase
     Browser->>Browser: Decrypt key locally - never leaves the tab
     Browser->>Server: WebSocket connect + hello(token)
@@ -99,8 +99,10 @@ const agentServer = new AgentServer();
 agentServer.attachTo(httpServer, '/ws');
 await agentServer.startUnixSocket();
 
-// このURLをユーザーに渡します（QRコード表示、リンク表示など）。
-// 永続的なログには残さないこと — ペアリングトークンはあえてフラグメントに載せています。
+// このURLは、ユーザーが既に自分のブラウザで見ているページ上にリンクやボタンとして
+// 描画します（例: `<a href={url}>SSH鍵をペアリングする</a>`）— 他の経路で
+// 中継する必要はありません。永続的なログには残さないこと —
+// ペアリングトークンはあえてフラグメントに載せています。
 const { url } = agentServer.createPairingLink('https://your-app.example/pair');
 
 agentServer.on('session-paired', () => {
@@ -193,6 +195,14 @@ agentForward: true, // 接続先ホストがさらに別ホストへホップす
 ```
 
 この統合方法は実際に動作し、テストもされています（`agentServer.agent()` はプロジェクトの最初期のバージョンから利用可能です）が、ここではまだ詳しく解説していません — `src/server/transports/inProcessAgent.ts` と [APIリファレンス](./docs/REFERENCE.ja.md#bssh-agentserver) を参照してください。
+
+### ペアリングリンクを別デバイスへ届ける（QRコード、印刷したリンクなど）
+
+[サーバー側の使い方例](#サーバー側)は、最も単純で安全なケースを前提としています。すなわち、ペアリングリンクを発行するプロセス自体が、ユーザーが既に自分のブラウザで見ているウェブアプリそのものであるケースです。この場合、`createPairingLink()` が返す URL は、そのページ上にリンクやボタンとして描画するだけでよく、他の配信経路は一切不要です。
+
+この前提が成り立たないのは、`createPairingLink()` を呼び出す側にリンクを描画するブラウザが存在しない場合です。代表例が `bssh-agent` CLI（[CLI](#cli-ターミナル用の-ssh_auth_sock) を参照）で、SSH 接続したリモート/ヘッドレスなマシン上で動いている可能性があります。この場合、URL を*別の*デバイスのブラウザへ届ける必要があり、よく使われる方法は、ユーザーにコピー＆ペーストしてもらうために印刷する方法と、スマートフォンで読み取れるよう QR コードとして描画する方法の2つです。
+
+どちらの方法も、`<a href>` によるリンク描画にはないリスクを持ち込みます。有効なワンタイムトークンを含む URL が、キャプチャされて保持され得るもの — ファイルに保存された QR コード画像、ファイリングされた印刷物、ログとして記録されるターミナルセッション — として存在するようになるからです。これは[ペアリングリンクを永続的にログへ残さない](#セキュリティに関する注意)という原則と同じリスク分類に属します。保存された QR コード画像は、それ自体がトークンの永続的なログなのです。トークンの既定の短い有効期限（5分）によって、こうした露出が実際に問題となる期間には上限がありますが、それだけに頼らないでください — QR コードや印刷したコピーは、付箋に書いたパスワードと同じように、ペアリングが完了したら破棄するものとして扱ってください。
 
 ## 既知の問題
 
