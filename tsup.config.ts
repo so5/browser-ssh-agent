@@ -23,4 +23,18 @@ export default defineConfig([
     dts: true,
     sourcemap: true,
   },
+  {
+    entry: { 'widget/index': 'src/widget/index.ts' },
+    platform: 'browser',
+    format: ['esm'],
+    dts: true,
+    sourcemap: true,
+  },
+  {
+    entry: { 'bin/bssh-agent': 'src/bin/bssh-agent.ts' },
+    platform: 'node',
+    format: ['esm'],
+    dts: false,
+    sourcemap: true,
+  },
 ]);

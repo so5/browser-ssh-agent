@@ -5,3 +5,5 @@ export { UnixSocketAgent } from './transports/unixSocketAgent.js';
 export type { UnixSocketAgentOptions } from './transports/unixSocketAgent.js';
 export { TokenStore } from './pairing.js';
 export { WsHub } from './wsHub.js';
+export { formatAgentStartScript, formatAgentKillScript } from './shellEnv.js';
+export type { AgentStartVars } from './shellEnv.js';

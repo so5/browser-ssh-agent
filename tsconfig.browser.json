@@ -5,5 +5,5 @@
     "types": [],
     "outDir": "dist"
   },
-  "include": ["src/browser/**/*.ts", "src/shared/**/*.ts"]
+  "include": ["src/browser/**/*.ts", "src/shared/**/*.ts", "src/widget/**/*.ts"]
 }

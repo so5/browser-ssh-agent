@@ -5,6 +5,9 @@
   "type": "module",
   "license": "MIT",
   "author": "Naoyuki Sogo <sogo@longtail-software.co.jp>",
+  "bin": {
+    "bssh-agent": "./dist/bin/bssh-agent.js"
+  },
   "keywords": [
     "ssh",
     "ssh-agent",
@@ -29,14 +32,19 @@
     "./shared": {
       "types": "./dist/shared/index.d.ts",
       "import": "./dist/shared/index.js"
+    },
+    "./widget": {
+      "types": "./dist/widget/index.d.ts",
+      "import": "./dist/widget/index.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && chmod +x dist/bin/bssh-agent.js",
     "test": "vitest run",
+    "test:cli": "npm run build && vitest run --config vitest.cli.config.ts",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.browser.json --noEmit"
   },
   "dependencies": {
@@ -49,6 +57,7 @@
     "@types/node": "^22.10.0",
     "@types/ssh2": "^1.15.5",
     "@types/ws": "^8.5.13",
+    "happy-dom": "^20.10.6",
     "tsup": "^8.3.5",
     "typescript": "^5.7.2",
     "vitest": "^4.1.9"
