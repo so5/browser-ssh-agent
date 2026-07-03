@@ -31,16 +31,6 @@ v1 supports Ed25519 keys only. RSA/ECDSA can be added by implementing the
 There's also a lower-level way to integrate directly with `ssh2`'s own
 `Client` API instead of spawning external CLI tools — see [Advanced](#advanced).
 
-**Known upstream issue worked around:** `ssh2`'s `AgentProtocol` (server
-mode) mishandles the `SSH_AGENTC_EXTENSION` probe modern OpenSSH clients
-(8.9+) send before listing identities — it replies correctly but fails to
-skip the message's payload, desyncing the wire framing for everything after
-and silently wedging the whole agent connection. `UnixSocketAgent` filters
-and answers these probes itself before handing other messages to
-`AgentProtocol`; see the comment above `pipeFilteringUnsupportedRequests` in
-`src/server/transports/unixSocketAgent.ts` for details. Confirmed present
-through `ssh2@1.17.0` (latest as of writing).
-
 ## Installation
 
 ```sh
@@ -227,6 +217,18 @@ This integration path is real and tested (`agentServer.agent()` has been
 usable since the project's earliest version), but isn't written up here in
 full yet — see `src/server/transports/inProcessAgent.ts` and the
 [API reference](./docs/REFERENCE.md#bssh-agentserver) in the meantime.
+
+## Known issues
+
+**Upstream `ssh2` bug worked around:** `ssh2`'s `AgentProtocol` (server
+mode) mishandles the `SSH_AGENTC_EXTENSION` probe modern OpenSSH clients
+(8.9+) send before listing identities — it replies correctly but fails to
+skip the message's payload, desyncing the wire framing for everything after
+and silently wedging the whole agent connection. `UnixSocketAgent` filters
+and answers these probes itself before handing other messages to
+`AgentProtocol`; see the comment above `pipeFilteringUnsupportedRequests` in
+`src/server/transports/unixSocketAgent.ts` for details. Confirmed present
+through `ssh2@1.17.0` (latest as of writing).
 
 ## Security notes
 
