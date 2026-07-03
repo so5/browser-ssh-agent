@@ -6,6 +6,55 @@ SSH agent forwarding over WebSocket: the private key lives in a browser tab,
 signing is relayed to a Node.js SSH client. A reimplementation of `ssh -A`
 where the "agent" is a paired browser session instead of a local socket.
 
+## How it works
+
+Pairing (step 2 below) happens once; using `ssh`/`git` (step 3) then works
+for as long as the browser tab stays connected, with no further setup.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Browser as Browser tab<br/>(holds the key)
+    participant Server as Your app<br/>(bssh-agent)
+    participant SSH as ssh / git<br/>(local CLI)
+    participant Remote as Remote SSH host
+
+    rect rgb(245,245,245)
+    Note over Server: 1. Start the server
+    Server->>Server: attachTo() + startUnixSocket()
+    Server->>Server: createPairingLink() -> pairing URL
+    end
+
+    rect rgb(245,245,245)
+    Note over User,Server: 2. Pair the browser (once)
+    Server-->>User: Pairing URL (QR code, link, ...)
+    User->>Browser: Open the URL
+    User->>Browser: Select key file + enter passphrase
+    Browser->>Browser: Decrypt key locally - never leaves the tab
+    Browser->>Server: WebSocket connect + hello(token)
+    Server-->>Browser: hello-ack (paired)
+    end
+
+    rect rgb(245,245,245)
+    Note over User,Remote: 3. Use ssh / git - any time after pairing
+    User->>SSH: ssh user@remote-host
+    SSH->>Server: via SSH_AUTH_SOCK: list identities
+    Server->>Browser: relay request
+    Browser-->>Server: public key
+    Server-->>SSH: public key
+    SSH->>Remote: offer publickey auth
+    Remote-->>SSH: sign this challenge
+    SSH->>Server: sign request
+    Server->>Browser: relay request
+    Browser-->>User: confirm this sign? (optional)
+    Browser-->>Server: signature
+    Server-->>SSH: signature
+    SSH->>Remote: signed challenge
+    Remote-->>SSH: authenticated
+    SSH-->>User: shell / command output
+    end
+```
+
 ## Status
 
 The core of the library relays signing requests from a paired browser
