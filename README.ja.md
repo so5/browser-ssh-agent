@@ -147,7 +147,7 @@ const connection = connectAgent({
 `<bssh-agent-pairing>` は上記の `loadKeyFromText` + `connectAgent` を、鍵読み込みフォームと署名確認 UI を備えた単一のカスタムエレメントにラップしたものです — `<script>` タグとこのタグ自体を置くだけで、フォームやダイアログを自前で書く必要はありません。
 
 ```html
-<script type="module" src="https://unpkg.com/bssh-agent@0.1.0/dist/widget/index.js"></script>
+<script type="module" src="https://unpkg.com/bssh-agent@0.2.0/dist/widget/index.js"></script>
 <bssh-agent-pairing></bssh-agent-pairing>
 ```
 

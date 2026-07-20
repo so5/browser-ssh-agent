@@ -173,7 +173,7 @@ add a `<script>` tag and the tag itself, no hand-written form or dialog
 required:
 
 ```html
-<script type="module" src="https://unpkg.com/bssh-agent@0.1.0/dist/widget/index.js"></script>
+<script type="module" src="https://unpkg.com/bssh-agent@0.2.0/dist/widget/index.js"></script>
 <bssh-agent-pairing></bssh-agent-pairing>
 ```
 

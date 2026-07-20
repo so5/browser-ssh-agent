@@ -1,6 +1,6 @@
 {
   "name": "bssh-agent",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "browser-ssh-agent: SSH agent forwarding over WebSocket — keys live in the browser, signing is relayed to a Node.js SSH client",
   "type": "module",
   "license": "MIT",
