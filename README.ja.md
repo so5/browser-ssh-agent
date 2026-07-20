@@ -1,7 +1,7 @@
 # browser-ssh-agent
 
 [![CI](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/REPLACE_ME/test_coverage)](https://codeclimate.com/github/so5/browser-ssh-agent/test_coverage)
+[![Coverage Status](https://coveralls.io/repos/github/so5/browser-ssh-agent/badge.svg?branch=main)](https://coveralls.io/github/so5/browser-ssh-agent?branch=main)
 [![Maintainability](https://api.codeclimate.com/v1/badges/REPLACE_ME/maintainability)](https://codeclimate.com/github/so5/browser-ssh-agent/maintainability)
 
 *[English](./README.md)*
