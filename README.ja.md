@@ -1,5 +1,6 @@
 # browser-ssh-agent
 
+[![npm version](https://badge.fury.io/js/bssh-agent.svg)](https://badge.fury.io/js/bssh-agent)
 [![CI](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/so5/browser-ssh-agent/badge.svg?branch=main)](https://coveralls.io/github/so5/browser-ssh-agent?branch=main)
 [![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=so5_browser-ssh-agent&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=so5_browser-ssh-agent)
