@@ -1,5 +1,9 @@
 # browser-ssh-agent
 
+[![CI](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/REPLACE_ME/test_coverage)](https://codeclimate.com/github/so5/browser-ssh-agent/test_coverage)
+[![Maintainability](https://api.codeclimate.com/v1/badges/REPLACE_ME/maintainability)](https://codeclimate.com/github/so5/browser-ssh-agent/maintainability)
+
 *[English](./README.md)*
 
 WebSocket 経由で SSH エージェントフォワーディングを実現するライブラリです。秘密鍵はブラウザタブの中だけに存在し、署名処理は Node.js 側の SSH クライアントへ WebSocket 経由で中継されます。`ssh -A` の「エージェント」役を、ローカルのソケットではなく**ペアリングされたブラウザセッション**が担う、と考えると分かりやすいです。

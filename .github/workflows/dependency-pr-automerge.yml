@@ -1,0 +1,160 @@
+name: Auto-approve and auto-merge dependency PRs
+
+# Uses pull_request_target (not pull_request) so bot-authored PRs get a
+# write-scoped GITHUB_TOKEN, needed to approve/merge. Because of that,
+# NEVER check out or execute anything from the PR's head ref here - only
+# read data (package.json contents, PR metadata) from the head SHA via the
+# API. All executable code (this workflow, classify-snyk-bump.js) always
+# runs from the trusted base branch's checkout.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  pull-requests: write
+  contents: write
+
+concurrency:
+  group: dep-pr-automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    # Safety gate: only ever run for PRs actually authored by dependabot or
+    # snyk-bot, on a branch of this repo (never a fork). Never for
+    # human-authored PRs. github.event.pull_request.user.login identifies
+    # the PR author unambiguously, regardless of who triggered this run.
+    if: >
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (
+        github.event.pull_request.user.login == 'dependabot[bot]' ||
+        github.event.pull_request.user.login == 'snyk-bot'
+      )
+    outputs:
+      bump: ${{ steps.decide.outputs.bump }}
+      source: ${{ steps.decide.outputs.source }}
+      details: ${{ steps.decide.outputs.details }}
+    steps:
+      # Default ref (base branch) - deliberately not the PR head. Only
+      # needed to get classify-snyk-bump.js from a trusted source.
+      - uses: actions/checkout@v4
+
+      - name: Dependabot metadata
+        id: dependabot-metadata
+        if: github.event.pull_request.user.login == 'dependabot[bot]'
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: Determine semver bump from package.json diff
+        id: pkgjson-diff
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          # Always runs, for both bots: primary classification method for Snyk,
+          # and fallback for Dependabot when fetch-metadata's update-type comes
+          # back null (observed on grouped PRs bundling multiple packages).
+          gh api "repos/${{ github.repository }}/contents/package.json?ref=$BASE_SHA" --jq '.content' | base64 -d > /tmp/base-package.json
+          gh api "repos/${{ github.repository }}/contents/package.json?ref=$HEAD_SHA" --jq '.content' | base64 -d > /tmp/head-package.json
+          node .github/scripts/classify-package-bump.js /tmp/base-package.json /tmp/head-package.json "$PR_TITLE" >> "$GITHUB_OUTPUT"
+
+      - name: Combine into single output
+        id: decide
+        run: |
+          if [ "${{ github.event.pull_request.user.login }}" = "dependabot[bot]" ]; then
+            case "${{ steps.dependabot-metadata.outputs.update-type }}" in
+              version-update:semver-patch) BUMP="patch" ;;
+              version-update:semver-minor) BUMP="minor" ;;
+              version-update:semver-major) BUMP="major" ;;
+              *) BUMP="" ;;
+            esac
+            if [ -z "$BUMP" ]; then
+              echo "::notice::dependabot/fetch-metadata gave no usable update-type, falling back to package.json diff"
+              BUMP="${{ steps.pkgjson-diff.outputs.bump }}"
+            fi
+            SOURCE="dependabot"
+          else
+            BUMP="${{ steps.pkgjson-diff.outputs.bump }}"
+            SOURCE="snyk"
+          fi
+          [ -z "$BUMP" ] && BUMP="unknown"
+          # Details are always taken from the package.json diff regardless of
+          # source, since it reflects the actual direct dependency change -
+          # Dependabot's own grouped-PR title/body can describe transitive
+          # packages pulled in by the real bump instead (e.g. "ajv, lodash"
+          # when the actual change was a major bump of glob, which bundles
+          # newer ajv/lodash internally).
+          {
+            echo "bump=$BUMP"
+            echo "source=$SOURCE"
+            echo "details<<PKGJSON_DETAILS_EOF"
+            echo "${{ steps.pkgjson-diff.outputs.details }}"
+            echo "PKGJSON_DETAILS_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  approve-and-merge:
+    needs: classify
+    runs-on: ubuntu-latest
+    if: needs.classify.outputs.bump == 'patch' || needs.classify.outputs.bump == 'minor'
+    steps:
+      - name: Auto-approve PR
+        uses: hmarr/auto-approve-action@v4.0.0
+        with:
+          github-token: "${{ secrets.GITHUB_TOKEN }}"
+          review-message: "Auto-approved: ${{ needs.classify.outputs.source }} ${{ needs.classify.outputs.bump }} update"
+
+      - name: Update PR branch if behind
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Best-effort: with required-status-checks branch protection, if a
+          # sibling bot PR merges first and advances the base branch, this PR
+          # falls behind and auto-merge would otherwise wait indefinitely for
+          # someone to update it. Proactively request the update ourselves.
+          # 422 (already up to date / nothing to do) is fine, ignore it.
+          gh api --method PUT "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/update-branch" || true
+
+      - name: Enable GitHub native auto-merge
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          # Requires branch protection with required status checks on the
+          # default branch - otherwise there is nothing for auto-merge to
+          # wait on. A transient failure has been reported when requirements
+          # aren't yet satisfied at enable-time; retry once after a delay.
+          gh pr merge --auto --squash "$PR_URL" || {
+            sleep 15
+            gh pr merge --auto --squash "$PR_URL"
+          }
+
+  notify-major:
+    needs: classify
+    runs-on: ubuntu-latest
+    if: needs.classify.outputs.bump == 'major' || needs.classify.outputs.bump == 'unknown'
+    steps:
+      - name: Flag for manual review
+        run: |
+          echo "::notice::PR #${{ github.event.pull_request.number }} is a '${{ needs.classify.outputs.bump }}' bump from ${{ needs.classify.outputs.source }} - needs manual review, not auto-merging."
+
+      - name: Notify Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL not set, skipping Slack notification."
+            exit 0
+          fi
+          curl -sS -X POST -H 'Content-type: application/json' \
+            --data "$(node -e '
+              const [, repo, num, url, bump, source, details] = process.argv;
+              const detailsLine = details ? `\n${details}` : "";
+              console.log(JSON.stringify({
+                text: `:warning: *${bump} update* from ${source} needs manual review in ${repo}${detailsLine}\n<${url}|PR #${num}>`
+              }));
+            ' "${{ github.repository }}" "${{ github.event.pull_request.number }}" "${{ github.event.pull_request.html_url }}" "${{ needs.classify.outputs.bump }}" "${{ needs.classify.outputs.source }}" "${{ needs.classify.outputs.details }}")" \
+            "$SLACK_WEBHOOK_URL"

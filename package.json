@@ -5,6 +5,10 @@
   "type": "module",
   "license": "MIT",
   "author": "Naoyuki Sogo <sogo@longtail-software.co.jp>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/so5/browser-ssh-agent.git"
+  },
   "bin": {
     "bssh-agent": "./dist/bin/bssh-agent.js"
   },
@@ -45,8 +49,10 @@
     "build": "rm -rf dist && tsc -p tsconfig.server.json && tsc -p tsconfig.browser.json && chmod +x dist/bin/bssh-agent.js",
     "test": "vitest run",
     "test:cli": "npm run build && vitest run --config vitest.cli.config.ts",
+    "coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.browser.json --noEmit",
-    "version": "node scripts/sync-readme-version.mjs && git add README.md README.ja.md"
+    "version": "node scripts/sync-readme-version.mjs && git add README.md README.ja.md",
+    "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@noble/curves": "^1.7.0",
@@ -55,11 +61,21 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
+    "@semantic-release/git": "^10.0.1",
+    "@semantic-release/github": "^11.0.4",
+    "@semantic-release/npm": "^13.1.0",
     "@types/node": "^22.10.0",
     "@types/ssh2": "^1.15.5",
     "@types/ws": "^8.5.13",
+    "@vitest/coverage-v8": "^4.1.9",
     "happy-dom": "^20.10.6",
+    "semantic-release": "^24.2.7",
     "typescript": "^5.7.2",
     "vitest": "^4.1.9"
+  },
+  "overrides": {
+    "@semantic-release/npm": "^13.1.0"
   }
 }

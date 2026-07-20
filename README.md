@@ -1,5 +1,9 @@
 # browser-ssh-agent
 
+[![CI](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/REPLACE_ME/test_coverage)](https://codeclimate.com/github/so5/browser-ssh-agent/test_coverage)
+[![Maintainability](https://api.codeclimate.com/v1/badges/REPLACE_ME/maintainability)](https://codeclimate.com/github/so5/browser-ssh-agent/maintainability)
+
 *[日本語](./README.ja.md)*
 
 SSH agent forwarding over WebSocket: the private key lives in a browser tab,
