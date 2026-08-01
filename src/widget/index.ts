@@ -23,13 +23,23 @@ const WIDGET_CSS = `
 }
 .field { margin-bottom: 0.75rem; }
 label { display: block; margin-bottom: 0.25rem; font-weight: 600; }
-input[type='file'], input[type='password'] {
+input[type='file'], input[type='password'], input[type='text'] {
   width: 100%;
   box-sizing: border-box;
   padding: 0.4rem;
   border: 1px solid #b0b0b0;
   border-radius: 4px;
 }
+.field-row { display: flex; gap: 0.5rem; align-items: stretch; }
+.field-row input { flex: 1; min-width: 0; }
+.field-row button { flex-shrink: 0; padding: 0.4rem 0.7rem; }
+.dropzone {
+  border: 1px dashed transparent;
+  border-radius: 4px;
+  padding: 0.15rem;
+  transition: border-color 0.15s, background 0.15s;
+}
+.dropzone.drag-active { border-color: #1a1a1a; background: #f5f5f5; }
 button {
   padding: 0.45rem 0.9rem;
   border: 1px solid #333;
@@ -94,7 +104,7 @@ function el<K extends keyof HTMLElementTagNameMap>(
  */
 export class BsshAgentPairingElement extends HTMLElement {
   static get observedAttributes(): string[] {
-    return ['token', 'ws-url', 'auto-confirm'];
+    return ['token', 'ws-url', 'require-confirm'];
   }
 
   token?: string;
@@ -275,9 +285,8 @@ export class BsshAgentPairingElement extends HTMLElement {
 
     if (this.confirmSign) return this.confirmSign(info);
 
-    const autoConfirmAttr = this.getAttribute('auto-confirm');
-    if (autoConfirmAttr !== null && autoConfirmAttr !== 'false') {
-      console.warn('bssh-agent-pairing: auto-confirm is enabled — sign requests are approved without prompting.');
+    const requireConfirmAttr = this.getAttribute('require-confirm');
+    if (requireConfirmAttr === null || requireConfirmAttr === 'false') {
       return true;
     }
 
@@ -328,8 +337,20 @@ export class BsshAgentPairingElement extends HTMLElement {
 
     const passField = el('div', { className: 'field' });
     const passLabel = el('label', { text: 'Passphrase' });
+    const passRow = el('div', { className: 'field-row' });
     const passInput = el('input', { type: 'password', testId: 'passphrase-input' });
-    passField.append(passLabel, passInput);
+    const toggleButton = el('button', {
+      className: 'secondary',
+      text: 'Show',
+      testId: 'toggle-passphrase-button',
+    });
+    toggleButton.addEventListener('click', () => {
+      const nowShowing = passInput.type === 'password';
+      passInput.type = nowShowing ? 'text' : 'password';
+      toggleButton.textContent = nowShowing ? 'Hide' : 'Show';
+    });
+    passRow.append(passInput, toggleButton);
+    passField.append(passLabel, passRow);
 
     if (this.cachedPem) {
       nodes.push(el('div', { text: `Using previously loaded key file: ${this.cachedPem.fileName}` }));
@@ -350,10 +371,29 @@ export class BsshAgentPairingElement extends HTMLElement {
       nodes.push(differentFileButton);
     } else {
       const fileField = el('div', { className: 'field' });
-      const fileLabel = el('label', { text: 'Private key file' });
+      const fileLabel = el('label', { text: 'Private key file (or drag it here)' });
+      const dropzone = el('div', { className: 'dropzone' });
       const fileInput = el('input', { type: 'file', testId: 'file-input' });
-      fileField.append(fileLabel, fileInput);
+      dropzone.append(fileInput);
+      fileField.append(fileLabel, dropzone);
       nodes.push(fileField, passField);
+
+      dropzone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropzone.classList.add('drag-active');
+      });
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('drag-active');
+      });
+      dropzone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropzone.classList.remove('drag-active');
+        const dropped = event.dataTransfer?.files?.[0];
+        if (!dropped) return;
+        const transfer = new DataTransfer();
+        transfer.items.add(dropped);
+        fileInput.files = transfer.files;
+      });
 
       const loadButton = el('button', { text: 'Load key & pair', testId: 'load-button' });
       loadButton.addEventListener('click', () => {

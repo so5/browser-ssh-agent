@@ -36,6 +36,19 @@ function waitForEvent(target: EventTarget, name: string): Promise<CustomEvent> {
   });
 }
 
+// `handleLoadKeyClick`'s failure path only updates the rendered error text —
+// it doesn't emit a CustomEvent (unlike a post-pairing `AgentConnection`
+// error) — so tests on that path poll the rendered text instead of awaiting
+// an event.
+async function waitForText(el: HTMLElement, text: string, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (el.shadowRoot?.textContent?.includes(text)) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`timed out waiting for shadow DOM text to contain "${text}"`);
+}
+
 // `ws`'s WebSocketServer.close() waits for existing clients to close
 // gracefully rather than terminating them, so calling agentServer.stop()
 // with a still-open client would hang forever — closing the widget's own
@@ -55,7 +68,7 @@ describe('<bssh-agent-pairing>', () => {
     expect(customElements.get('bssh-agent-pairing')).toBeDefined();
   });
 
-  it('pairs a real AgentServer, approves a sign request, and zeroizes on forget', async () => {
+  it('with require-confirm: pairs a real AgentServer, approves a sign request, and zeroizes on forget', async () => {
     const agentServer = new AgentServer();
     const { wsUrl } = await agentServer.listen(0, '127.0.0.1');
     const pairing = agentServer.createPairingLink('https://example.invalid/pair');
@@ -64,6 +77,7 @@ describe('<bssh-agent-pairing>', () => {
     const el = document.createElement('bssh-agent-pairing') as BsshAgentPairingElement;
     el.token = token;
     el.wsUrl = wsUrl;
+    el.setAttribute('require-confirm', 'true');
     document.body.append(el);
 
     const fileInput = query(el, 'file-input') as HTMLInputElement;
@@ -107,6 +121,54 @@ describe('<bssh-agent-pairing>', () => {
 
     expect(el.shadowRoot?.querySelector('[data-testid="file-input"]')).toBeTruthy();
 
+    await agentServer.stop();
+  });
+
+  it('by default (no require-confirm): auto-approves a sign request with no overlay shown', async () => {
+    const agentServer = new AgentServer();
+    const { wsUrl } = await agentServer.listen(0, '127.0.0.1');
+    const pairing = agentServer.createPairingLink('https://example.invalid/pair');
+    const token = new URL(pairing.url).hash.replace('#token=', '');
+
+    const el = document.createElement('bssh-agent-pairing') as BsshAgentPairingElement;
+    el.token = token;
+    el.wsUrl = wsUrl;
+    document.body.append(el);
+
+    const fileInput = query(el, 'file-input') as HTMLInputElement;
+    const passphraseInput = query(el, 'passphrase-input') as HTMLInputElement;
+    const loadButton = query(el, 'load-button') as HTMLButtonElement;
+
+    const keyFile = new File([readFixture('id_ed25519_plain')], 'id_ed25519_plain');
+    setFiles(fileInput, [keyFile]);
+    passphraseInput.value = '';
+
+    const pairedEvent = waitForEvent(el, 'paired');
+    loadButton.click();
+    await pairedEvent;
+
+    const pubKey = utils.parseKey(readFixture('id_ed25519_plain.pub'));
+    if (pubKey instanceof Error) throw pubKey;
+
+    const signRequest = waitForEvent(el, 'sign-request');
+    const signResultPromise = new Promise<Buffer>((resolve, reject) => {
+      agentServer.agent().sign(pubKey.getPublicSSH(), Buffer.from('challenge'), {}, (err, sig) => {
+        if (err || !sig) reject(err ?? new Error('no signature'));
+        else resolve(sig);
+      });
+    });
+    await signRequest;
+
+    // No approve/deny overlay should have been rendered — the sign request
+    // resolves on its own.
+    expect(el.shadowRoot?.querySelector('[data-testid="approve-button"]')).toBeNull();
+    const signature = await signResultPromise;
+    expect(pubKey.verify(Buffer.from('challenge'), signature)).toBe(true);
+
+    // Close the widget's WS connection before stopping the server — `ws`'s
+    // WebSocketServer.close() waits for existing clients to close
+    // gracefully rather than terminating them (see simulateDisconnect above).
+    simulateDisconnect(el);
     await agentServer.stop();
   });
 
@@ -195,6 +257,50 @@ describe('<bssh-agent-pairing>', () => {
     useDifferentFileButton.click();
 
     expect(el.shadowRoot?.querySelector('[data-testid="file-input"]')).toBeTruthy();
+
+    await agentServer.stop();
+  });
+
+  it('toggles the passphrase field between hidden and visible text', () => {
+    const el = document.createElement('bssh-agent-pairing') as BsshAgentPairingElement;
+    document.body.append(el);
+
+    const passphraseInput = query(el, 'passphrase-input') as HTMLInputElement;
+    const toggleButton = query(el, 'toggle-passphrase-button') as HTMLButtonElement;
+    expect(passphraseInput.type).toBe('password');
+
+    toggleButton.click();
+    expect(passphraseInput.type).toBe('text');
+    expect(toggleButton.textContent).toBe('Hide');
+
+    toggleButton.click();
+    expect(passphraseInput.type).toBe('password');
+    expect(toggleButton.textContent).toBe('Show');
+  });
+
+  it('shows a clear error instead of the raw bcrypt failure when the passphrase is left empty', async () => {
+    const agentServer = new AgentServer();
+    const { wsUrl } = await agentServer.listen(0, '127.0.0.1');
+    const pairing = agentServer.createPairingLink('https://example.invalid/pair');
+    const token = new URL(pairing.url).hash.replace('#token=', '');
+
+    const el = document.createElement('bssh-agent-pairing') as BsshAgentPairingElement;
+    el.token = token;
+    el.wsUrl = wsUrl;
+    document.body.append(el);
+
+    const fileInput = query(el, 'file-input') as HTMLInputElement;
+    const passphraseInput = query(el, 'passphrase-input') as HTMLInputElement;
+    const loadButton = query(el, 'load-button') as HTMLButtonElement;
+
+    const keyFile = new File([readFixture('id_ed25519_enc')], 'id_ed25519_enc');
+    setFiles(fileInput, [keyFile]);
+    passphraseInput.value = '';
+
+    loadButton.click();
+    await waitForText(el, 'enter its passphrase');
+
+    expect(el.shadowRoot?.textContent).not.toContain('bcrypt_pbkdf');
 
     await agentServer.stop();
   });

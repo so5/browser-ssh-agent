@@ -18,6 +18,8 @@ interface CliOptions {
   noBrowser: boolean;
   runtimeDir?: string;
   port: number;
+  host: string;
+  requireConfirm: boolean;
   help: boolean;
 }
 
@@ -36,6 +38,8 @@ Options:
       --force        replace an already-running agent with the same --name
       --no-browser   don't try to open the pairing URL in a browser
       --port <n>     pairing HTTP/WS port (default: 0, i.e. an ephemeral port)
+      --host <addr>  bind address for the pairing HTTP/WS server (default: 127.0.0.1)
+      --require-confirm  show an approve/deny prompt for every sign request instead of auto-approving
       --runtime-dir <dir>  where state files live (default: $XDG_RUNTIME_DIR/bssh-agent or a tmpdir)
   -h, --help         show this help
 `;
@@ -48,6 +52,8 @@ function parseArgs(argv: string[]): CliOptions {
     force: false,
     noBrowser: false,
     port: 0,
+    host: '127.0.0.1',
+    requireConfirm: false,
     help: false,
   };
 
@@ -76,6 +82,12 @@ function parseArgs(argv: string[]): CliOptions {
         break;
       case '--port':
         opts.port = Number(argv[++i] ?? '0');
+        break;
+      case '--host':
+        opts.host = argv[++i] ?? opts.host;
+        break;
+      case '--require-confirm':
+        opts.requireConfirm = true;
         break;
       case '-h':
       case '--help':
@@ -121,12 +133,15 @@ async function startAgent(runtimeDir: string, opts: CliOptions): Promise<StartRe
 
   const agentServer = new AgentServer();
   const socketPath = await agentServer.startUnixSocket();
-  const httpServer = createPairingHttpServer({ widgetJsPath: resolveWidgetDistPath() });
+  const httpServer = createPairingHttpServer({
+    widgetJsPath: resolveWidgetDistPath(),
+    requireConfirm: opts.requireConfirm,
+  });
   agentServer.attachTo(httpServer, '/ws');
 
   await new Promise<void>((resolve, reject) => {
     httpServer.once('error', reject);
-    httpServer.listen(opts.port, '127.0.0.1', () => resolve());
+    httpServer.listen(opts.port, opts.host, () => resolve());
   });
 
   const address = httpServer.address();
@@ -203,9 +218,19 @@ function runLauncher(runtimeDir: string, opts: CliOptions): void {
   const logPath = join(runtimeDir, `agent-${opts.name}.log`);
   const logFd = openSync(logPath, 'a');
 
-  const forwardedArgs = ['--name', opts.name, '--port', String(opts.port), '--runtime-dir', runtimeDir];
+  const forwardedArgs = [
+    '--name',
+    opts.name,
+    '--port',
+    String(opts.port),
+    '--host',
+    opts.host,
+    '--runtime-dir',
+    runtimeDir,
+  ];
   if (opts.force) forwardedArgs.push('--force');
   if (opts.noBrowser) forwardedArgs.push('--no-browser');
+  if (opts.requireConfirm) forwardedArgs.push('--require-confirm');
 
   let child: ChildProcess;
   try {

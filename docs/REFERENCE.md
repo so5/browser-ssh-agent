@@ -176,7 +176,7 @@ UI. Importing `bssh-agent/widget` registers the element as a side effect.
 |---|---|---|---|
 | `token` | `token` | `string` | Read from `location.hash`'s `token` param if unset. |
 | `ws-url` | `wsUrl` | `string` | `${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws` if unset. |
-| `auto-confirm` | — | `"true"` / absent | Skips the built-in confirm-sign prompt entirely. Dangerous — see the README's security notes. |
+| `require-confirm` | — | `"true"` / absent | Shows the built-in approve/deny prompt for every sign request instead of the default silent auto-approve. See the README's security notes. |
 | — | `confirmSign` | `(info: ConfirmSignInfo) => Promise<boolean> \| boolean` | Supply your own confirm-sign UI instead of the built-in prompt. |
 
 Properties are resolved lazily (at the moment a sign-in/reconnect action is
@@ -245,6 +245,8 @@ full walkthrough (`eval "$(bssh-agent)"`).
 | `--force` | Replace an already-running agent with the same `--name`. |
 | `--no-browser` | Don't try to open the pairing URL in a browser. |
 | `--port <n>` | Pairing HTTP/WS port. Default: `0` (an ephemeral port). |
+| `--host <addr>` | Bind address for the pairing HTTP/WS server. Default: `127.0.0.1`. |
+| `--require-confirm` | Show an approve/deny prompt for every sign request, by setting the served widget's `require-confirm="true"` attribute, instead of the default silent auto-approve. See the README's security notes. Off by default. |
 | `--runtime-dir <dir>` | Where state files (pid, socket path, port) live. Default: `$XDG_RUNTIME_DIR/bssh-agent` or a tmpdir. |
 | `-h`, `--help` | Show usage. |
 

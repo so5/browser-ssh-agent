@@ -43,7 +43,7 @@ spawn('sh', ['-c',
 
 **オプション2 — 自分の端末から、`bssh-agent` CLI経由で:**
 
-すでに `eval "$(bssh-agent)"` を実行し、自分の鍵をペアリング済みのシェルから（[CLIセクション](../README.ja.md#cli-ターミナル用の-ssh_auth_sock)を参照）:
+すでに `eval "$(bssh-agent)"` を実行し、自分の鍵をペアリング済みのシェルから（[スタンドアロンCLIセクション](../README.ja.md#スタンドアロン-bssh-agent-cli)を参照）:
 
 ```sh
 ssh-copy-id -i ~/.ssh/id_ed25519_to_remote-host.pub youruser@remote-host

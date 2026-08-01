@@ -4,9 +4,18 @@ import { type IncomingMessage, type ServerResponse, createServer } from 'node:ht
 export interface PairingHttpServerOptions {
   /** Path to the built `bssh-agent/widget` bundle (`dist/widget/index.js`). */
   widgetJsPath: string;
+  /**
+   * Sets the widget's `require-confirm="true"` attribute, showing an
+   * approve/deny prompt for every sign request instead of the default
+   * silent auto-approve — see the README's security notes. Off by default;
+   * the CLI only turns this on when `--require-confirm` is passed explicitly.
+   */
+  requireConfirm?: boolean;
 }
 
-const PAIRING_PAGE_HTML = `<!doctype html>
+function buildPairingPageHtml(requireConfirm: boolean): string {
+  const widgetTag = requireConfirm ? '<bssh-agent-pairing require-confirm="true"></bssh-agent-pairing>' : '<bssh-agent-pairing></bssh-agent-pairing>';
+  return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -15,17 +24,18 @@ const PAIRING_PAGE_HTML = `<!doctype html>
 </head>
 <body>
 <script type="module" src="/widget.js"></script>
-<bssh-agent-pairing></bssh-agent-pairing>
+${widgetTag}
 </body>
 </html>
 `;
+}
 
-function handleRequest(widgetJs: string, req: IncomingMessage, res: ServerResponse): void {
+function handleRequest(widgetJs: string, pairingPageHtml: string, req: IncomingMessage, res: ServerResponse): void {
   res.setHeader('Content-Security-Policy', "script-src 'self'");
 
   if (req.url === '/' || req.url === '/index.html') {
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(PAIRING_PAGE_HTML);
+    res.end(pairingPageHtml);
     return;
   }
 
@@ -50,5 +60,6 @@ function handleRequest(widgetJs: string, req: IncomingMessage, res: ServerRespon
  */
 export function createPairingHttpServer(opts: PairingHttpServerOptions) {
   const widgetJs = readFileSync(opts.widgetJsPath, 'utf8');
-  return createServer((req, res) => handleRequest(widgetJs, req, res));
+  const pairingPageHtml = buildPairingPageHtml(opts.requireConfirm ?? false);
+  return createServer((req, res) => handleRequest(widgetJs, pairingPageHtml, req, res));
 }

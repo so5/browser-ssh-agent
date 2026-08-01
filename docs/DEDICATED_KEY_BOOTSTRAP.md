@@ -51,7 +51,7 @@ spawn('sh', ['-c',
 **Option 2 — from your own terminal, via the `bssh-agent` CLI:**
 
 From a shell where you've run `eval "$(bssh-agent)"` and paired your own key
-(see the [CLI section](../README.md#cli-ssh_auth_sock-for-your-terminal)):
+(see the [Standalone CLI section](../README.md#standalone-the-bssh-agent-cli)):
 
 ```sh
 ssh-copy-id -i ~/.ssh/id_ed25519_to_remote-host.pub youruser@remote-host

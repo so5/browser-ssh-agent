@@ -2,8 +2,8 @@
 
 [![npm version](https://badge.fury.io/js/bssh-agent.svg)](https://badge.fury.io/js/bssh-agent)
 [![CI](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/so5/browser-ssh-agent/actions/workflows/ci.yml)
-[![Coverage Status](https://coveralls.io/repos/github/so5/browser-ssh-agent/badge.svg?branch=main)](https://coveralls.io/github/so5/browser-ssh-agent?branch=main)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=so5_browser-ssh-agent&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=so5_browser-ssh-agent)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/REPLACE_ME/test_coverage)](https://codeclimate.com/github/so5/browser-ssh-agent/test_coverage)
+[![Maintainability](https://api.codeclimate.com/v1/badges/REPLACE_ME/maintainability)](https://codeclimate.com/github/so5/browser-ssh-agent/maintainability)
 
 *[日本語](./README.ja.md)*
 
@@ -64,21 +64,25 @@ sequenceDiagram
 
 The core of the library relays signing requests from a paired browser
 session to a real `SSH_AUTH_SOCK` Unix domain socket
-(`agentServer.startUnixSocket()`). Spread `agentServer.env()` into a
-`child_process.spawn()` call, and that spawned `ssh`/`git`/`rsync`/`scp`
-process authenticates using a key that only ever exists in the browser tab
-— never on the server, never on disk.
+(`agentServer.startUnixSocket()`). Any `ssh`/`git`/`rsync`/`scp` process that
+picks up that socket authenticates using a key that only ever exists in the
+browser tab — never on the server, never on disk.
 
-Two more pieces build on top of that:
+There are two ways to run the server side, and a widget that works with
+either:
 
-- **`bssh-agent` CLI** — a standalone daemon, `ssh-agent`-style, for the
-  case `agentServer.env()` doesn't cover: a human typing `ssh`/`git`/`rsync`
-  directly into their *own* interactive shell rather than a child process
-  your Node app spawns. See [CLI: `SSH_AUTH_SOCK` for your terminal](#cli-ssh_auth_sock-for-your-terminal).
+- **`bssh-agent` CLI** — a standalone, `ssh-agent`-style daemon: no host app
+  required, `SSH_AUTH_SOCK` lands directly in your shell. See
+  [Standalone: the `bssh-agent` CLI](#standalone-the-bssh-agent-cli).
+- **`AgentServer`, embedded in your own app** — attach to an HTTP(S) server
+  you're already running, and spread `agentServer.env()` into
+  `child_process.spawn()` calls your app makes. See
+  [Embedded: attach to your own HTTP server](#embedded-attach-to-your-own-http-server).
 - **`<bssh-agent-pairing>` widget** (`bssh-agent/widget`) — a drop-in Web
   Component wrapping the browser-side primitives below, so a host page needs
   only a `<script>` tag and a custom element instead of hand-writing a key
-  form and confirm-sign dialog. See [Browser, using the drop-in widget](#browser-using-the-drop-in-widget).
+  form and confirm-sign dialog. Works with either mode above. See
+  [Browser, using the drop-in widget](#browser-using-the-drop-in-widget).
 
 v1 supports Ed25519 keys only. RSA/ECDSA can be added by implementing the
 `Signer` interface (`src/browser/signers/`) — no protocol change required.
@@ -108,10 +112,43 @@ every export, option, and event across all four subpaths.
 
 ## Usage
 
-### Server
+### Standalone: the `bssh-agent` CLI
 
-Attach to your app's existing HTTP(S) server and start the Unix socket
-transport — this is the normal way to wire up `AgentServer`:
+A ready-to-run daemon, `ssh-agent`-style — no host app or code changes
+required. Best when a human is typing `ssh`/`git`/`rsync` directly into
+their own shell, or when you just want to try the library out:
+
+```sh
+eval "$(bssh-agent)"
+```
+
+This starts a background daemon, prints a pairing URL to stderr (and tries to
+open it in your default browser, unless `--no-browser` or a remote/SSH
+session is detected), and `eval`s `SSH_AUTH_SOCK`/`SSH_AGENT_PID` into your
+current shell. Once you've paired a key via the opened page (using the
+`<bssh-agent-pairing>` widget below), every subsequent `ssh`/`git`/`rsync` in
+that shell picks up `SSH_AUTH_SOCK` for free — no code changes in any host
+app required. If a command runs before you finish pairing, it just fails
+auth cleanly and can be retried, the same way it would against a locked
+GUI keychain agent.
+
+```sh
+bssh-agent -k    # stop the daemon and unset the env vars: eval "$(bssh-agent -k)"
+```
+
+See the [API reference](./docs/REFERENCE.md#bssh-agent-cli) for the full
+flag listing (`-D`/`--foreground`, `--name`, `--force`, `--port`, `--host`,
+`--runtime-dir`, ...).
+
+Unlike real `ssh-agent`, `bssh-agent -k` must be able to find a running
+daemon from a *different* shell session than the one that started it, so it
+keeps a small state file (pid, socket path, port) under its runtime
+directory rather than relying solely on `SSH_AGENT_PID`.
+
+### Embedded: attach to your own HTTP server
+
+Wire `AgentServer` into an app you're already building: attach to its
+existing HTTP(S) server and start the Unix socket transport.
 
 ```ts
 import { createServer } from 'node:http';
@@ -219,47 +256,49 @@ Reconnecting still needs a fresh pairing token from your host app (tokens
 are single-use, and there's no session resumption) — only the key-loading
 step is skipped.
 
-Set `auto-confirm="true"` to skip the built-in approve/deny prompt entirely
-(logs a console warning when used — see security notes below), or set the
-`confirmSign` property to supply your own UI instead of the built-in one.
+By default every sign request is approved automatically, with no prompt —
+this matches real `ssh-agent`'s own default (`ssh -A` doesn't ask
+per-signature either). Set `require-confirm="true"` to show a built-in
+approve/deny prompt before each signature instead (the same trade-off real
+`ssh-agent`'s optional `-c`/confirm mode offers — see
+[Security notes](#security-notes)), or set the `confirmSign` property to
+supply your own UI instead of the built-in one.
 
 See the [API reference](./docs/REFERENCE.md#bssh-agentwidget) for the full
 attribute/property/event listing.
 
-## CLI: `SSH_AUTH_SOCK` for your terminal
+## Try it in Docker
 
-`agentServer.env()` only helps `child_process.spawn()` calls your own Node
-process makes. It does nothing for a human typing `ssh`/`git`/`rsync`
-directly into their own already-running shell — Unix has no way to inject an
-env var into a sibling process after the fact. The `bssh-agent` CLI solves
-this the same way real `ssh-agent` does:
+A self-contained way to try the standalone CLI without installing Node
+locally:
 
 ```sh
-eval "$(bssh-agent)"
+docker build -t bssh-agent-demo .
+docker run --rm --name bssh-agent-demo -p 8787:8787 bssh-agent-demo
+docker logs bssh-agent-demo
 ```
 
-This starts a background daemon, prints a pairing URL to stderr (and tries to
-open it in your default browser, unless `--no-browser` or a remote/SSH
-session is detected), and `eval`s `SSH_AUTH_SOCK`/`SSH_AGENT_PID` into your
-current shell. Once you've paired a key via the opened page (using the
-`<bssh-agent-pairing>` widget above), every subsequent `ssh`/`git`/`rsync` in
-that shell picks up `SSH_AUTH_SOCK` for free — no code changes in any host
-app required. If a command runs before you finish pairing, it just fails
-auth cleanly and can be retried, the same way it would against a locked
-GUI keychain agent.
+The last command prints a `Pairing URL: http://127.0.0.1:8787/#token=...`
+line — open it in your own desktop browser, not inside the container. Its
+file picker reads a private key straight off your own machine's disk; the
+container never sees it, only the public key and signatures that cross the
+WebSocket afterward (see [How it works](#how-it-works)). A throwaway keypair
+works fine for a first try. Once paired, signing happens without a prompt
+(the default — see [Security notes](#security-notes) for the trade-off, and
+`--require-confirm` if you'd rather approve each one).
+
+Once paired, run a real `ssh` command through it from inside the container:
 
 ```sh
-bssh-agent -k    # stop the daemon and unset the env vars: eval "$(bssh-agent -k)"
+docker exec -it bssh-agent-demo sh -c \
+  '. /run/bssh-agent/env.sh && ssh -o StrictHostKeyChecking=accept-new -T git@github.com'
 ```
 
-See the [API reference](./docs/REFERENCE.md#bssh-agent-cli) for the full
-flag listing (`-D`/`--foreground`, `--name`, `--force`, `--port`,
-`--runtime-dir`, ...).
-
-Unlike real `ssh-agent`, `bssh-agent -k` must be able to find a running
-daemon from a *different* shell session than the one that started it, so it
-keeps a small state file (pid, socket path, port) under its runtime
-directory rather than relying solely on `SSH_AGENT_PID`.
+Substitute your own remote host for `git@github.com` — it's used here only
+because it needs no extra server setup. The container binds its pairing page
+to `0.0.0.0` via `--host` so Docker's own port-publishing can reach it;
+outside a container the CLI's default stays loopback-only — see [Security
+notes](#security-notes).
 
 ## Advanced
 
@@ -283,7 +322,7 @@ full yet — see `src/server/transports/inProcessAgent.ts` and the
 
 ### Delivering the pairing link across devices (QR code, printed link, ...)
 
-The [Server usage example](#server) assumes the simplest and safest case:
+The [Embedded usage example](#embedded-attach-to-your-own-http-server) assumes the simplest and safest case:
 the process minting the pairing link *is* the web app the user is already
 viewing in their own browser, so `createPairingLink()`'s URL can just be
 rendered as a link/button on that page — no separate delivery channel
@@ -291,7 +330,7 @@ needed at all.
 
 That assumption breaks down when whatever calls `createPairingLink()` has
 no browser of its own to render a link in — most notably the `bssh-agent`
-CLI (see [CLI](#cli-ssh_auth_sock-for-your-terminal)), which may be running
+CLI (see [Standalone](#standalone-the-bssh-agent-cli)), which may be running
 on a remote/headless machine you've SSH'd into. In that case the URL has to
 reach a *different* device's browser somehow: printing it for the user to
 copy-paste, or rendering it as a QR code for a phone to scan, are the two
@@ -345,10 +384,18 @@ through `ssh2@1.17.0` (latest as of writing).
   disconnect/idle.
 - **Use `wss://` off-loopback.** Plain `ws://` is only acceptable to
   `127.0.0.1`.
-- **`confirmSign` should be supplied and default to requiring approval** —
-  without it, anything relaying through the paired server can silently
-  authenticate as the user. Note the agent protocol never reveals *which
-  remote host* a challenge is for, only the key fingerprint.
+- **By default, every sign request is approved automatically** — this
+  matches real `ssh-agent`'s own default (`ssh -A` doesn't prompt
+  per-signature either). The trade-off it shares with real agent forwarding:
+  if the server relaying requests is ever compromised, an attacker can
+  authenticate as you with the paired key for as long as the browser tab
+  stays connected. (The agent protocol never reveals *which* remote host a
+  challenge is for, only the key fingerprint, so there's no way to spot this
+  from the request alone either way.) Set `require-confirm="true"` on the
+  widget — or `--require-confirm` on the CLI — to show an approve/deny
+  prompt for every signature instead, the same mitigation real `ssh-agent`'s
+  optional `-c`/confirm mode offers; or supply `confirmSign` directly for
+  your own UI.
 - **Pairing tokens are single-use and go in the URL fragment**, never a query
   parameter (proxies commonly log those) and never a persistent log file.
 - **The Unix socket file is a local privilege boundary**: anything on the
@@ -356,15 +403,14 @@ through `ssh2@1.17.0` (latest as of writing).
   the loaded key" power, equivalent in trust to real agent forwarding. It's
   created at a per-run unguessable path with `0600` permissions. No Windows
   named-pipe support — Unix domain socket only.
-- **The CLI's self-served pairing page binds `127.0.0.1` only**, never
-  `0.0.0.0`, by default. Using it over SSH into a remote box requires you to
+- **The CLI's self-served pairing page binds `127.0.0.1` only by default**,
+  never `0.0.0.0`. Using it over SSH into a remote box requires you to
   `ssh -L` the pairing port yourself — the CLI skips auto-opening a browser
   when `SSH_CONNECTION`/`SSH_TTY` suggest a remote/headless session.
-- **The widget's `auto-confirm="true"` attribute is a documented, dangerous
-  escape hatch** (it logs a console warning when used): it approves every
-  sign request with no prompt at all, equivalent to running without
-  `confirmSign`. Only use it where the host page implements its own
-  equivalent safeguard.
+  `--host` overrides the bind address (e.g. `--host 0.0.0.0` so Docker's own
+  port-publishing can reach it — see [Try it in Docker](#try-it-in-docker));
+  only widen it within a network boundary you already trust, since it
+  removes the loopback protection.
 - **The widget caches the encrypted key file's text in memory across a
   disconnect**, so reconnecting only asks for the passphrase, not the file —
   see [Browser, using the drop-in widget](#browser-using-the-drop-in-widget).

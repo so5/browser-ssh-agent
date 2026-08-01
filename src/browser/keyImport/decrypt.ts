@@ -50,6 +50,9 @@ export async function decryptOpenSshEd25519Key(
     if (!file.kdfSalt || file.kdfRounds === null) {
       throw new Error('Encrypted key is missing bcrypt KDF parameters');
     }
+    if (passphrase.length === 0) {
+      throw new Error('This key is encrypted — enter its passphrase.');
+    }
     const passphraseBytes = utf8ToBytes(passphrase);
     const { key, iv } = deriveKeyAndIv(passphraseBytes, file.kdfSalt, file.kdfRounds, 32, 16);
     try {

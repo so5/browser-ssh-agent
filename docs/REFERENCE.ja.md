@@ -138,7 +138,7 @@ interface Signer {
 |---|---|---|---|
 | `token` | `token` | `string` | 未指定の場合、`location.hash` の `token` パラメータから読み取る。 |
 | `ws-url` | `wsUrl` | `string` | 未指定の場合、`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws`。 |
-| `auto-confirm` | — | `"true"` / 未指定 | 組み込みの署名確認プロンプトを完全にスキップする。危険 — README のセキュリティに関する注意を参照。 |
+| `require-confirm` | — | `"true"` / 未指定 | 既定の無言の自動承認の代わりに、すべての署名リクエストで組み込みの承認/拒否プロンプトを表示する。README のセキュリティに関する注意を参照。 |
 | — | `confirmSign` | `(info: ConfirmSignInfo) => Promise<boolean> \| boolean` | 組み込みのプロンプトの代わりに独自の署名確認 UI を指定する。 |
 
 プロパティは遅延解決される（再接続などのアクションが実際に行われる瞬間に読み取られる）ため、ホストページはエレメントを挿入した後いつでもこれらを設定できる。
@@ -192,6 +192,8 @@ usage: bssh-agent [options]
 | `--force` | 同じ `--name` で既に動いているエージェントを置き換える。 |
 | `--no-browser` | ペアリング URL をブラウザで開こうとしない。 |
 | `--port <n>` | ペアリング用 HTTP/WS ポート。既定値: `0`（空きポートを自動選択）。 |
+| `--host <addr>` | ペアリング用 HTTP/WS サーバーのバインドアドレス。既定値: `127.0.0.1`。 |
+| `--require-confirm` | 配信されるウィジェットの `require-confirm="true"` 属性を設定し、既定の無言の自動承認の代わりに、すべての署名リクエストで承認/拒否プロンプトを表示する。READMEのセキュリティに関する注意を参照。既定では無効。 |
 | `--runtime-dir <dir>` | 状態ファイル（pid、ソケットパス、ポート）の保存先。既定値: `$XDG_RUNTIME_DIR/bssh-agent` または一時ディレクトリ。 |
 | `-h`, `--help` | 使い方を表示する。 |
 

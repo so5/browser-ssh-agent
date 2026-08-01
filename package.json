@@ -46,7 +46,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.server.json && tsc -p tsconfig.browser.json && chmod +x dist/bin/bssh-agent.js",
+    "build": "rm -rf dist && tsc -p tsconfig.server.json && tsc -p tsconfig.browser.json && node scripts/bundle-widget.mjs && chmod +x dist/bin/bssh-agent.js",
     "test": "vitest run",
     "test:cli": "npm run build && vitest run --config vitest.cli.config.ts",
     "coverage": "vitest run --coverage",
@@ -70,6 +70,7 @@
     "@types/ssh2": "^1.15.5",
     "@types/ws": "^8.5.13",
     "@vitest/coverage-v8": "^4.1.9",
+    "esbuild": "^0.28.1",
     "happy-dom": "^20.10.6",
     "semantic-release": "^24.2.7",
     "typescript": "^5.7.2",
