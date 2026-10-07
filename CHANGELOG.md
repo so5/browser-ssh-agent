@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/so5/browser-ssh-agent/compare/v1.0.0...v1.0.1) (2026-10-07)
+
+
+### Bug Fixes
+
+* **engines:** set Node requirement to >=16.11.0 ([#13](https://github.com/so5/browser-ssh-agent/issues/13)) ([a818db8](https://github.com/so5/browser-ssh-agent/commit/a818db89d8a07fee86f75c7712ce55f43d5f5d0c))
+
 # [1.0.0](https://github.com/so5/browser-ssh-agent/compare/v0.2.0...v1.0.0) (2026-08-02)
 
 
