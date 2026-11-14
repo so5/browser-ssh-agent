@@ -99,7 +99,7 @@ jobs:
   approve-and-merge:
     needs: classify
     runs-on: ubuntu-latest
-    if: needs.classify.outputs.bump == 'patch' || needs.classify.outputs.bump == 'minor' || needs.classify.outputs.bump == 'major'
+    if: needs.classify.outputs.bump == 'patch' || needs.classify.outputs.bump == 'minor'
     steps:
       - name: Auto-approve PR
         uses: hmarr/auto-approve-action@v4.0.0
@@ -121,11 +121,8 @@ jobs:
           #
           # Dependabot PRs are left alone here: update-branch pushes a commit as
           # github-actions, which leaves the new head's workflows waiting for
-          # approval and makes Dependabot refuse `@dependabot rebase`. They are
-          # rebased by unstick-behind-prs.yml, which asks Dependabot with a
-          # personal access token (a workflow triggered by Dependabot can not
-          # read the repository secrets, and `@dependabot rebase` is refused
-          # when it comes from github-actions).
+          # approval. They are updated by unstick-behind-prs.yml, which pushes
+          # the merged default branch with a personal access token.
           if [ "${{ github.event.pull_request.user.login }}" != "dependabot[bot]" ] \
             && [ "$(gh pr view "$PR" --repo "$REPO" --json mergeStateStatus --jq .mergeStateStatus)" = "BEHIND" ]; then
             gh api --method PUT "repos/$REPO/pulls/$PR/update-branch" || true
@@ -148,7 +145,7 @@ jobs:
   notify-major:
     needs: classify
     runs-on: ubuntu-latest
-    if: needs.classify.outputs.bump == 'unknown'
+    if: needs.classify.outputs.bump == 'major' || needs.classify.outputs.bump == 'unknown'
     steps:
       - name: Flag for manual review
         run: |
